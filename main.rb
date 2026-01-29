@@ -1,12 +1,10 @@
 require './lib/game'
 require 'json'
 
-Dictionary = []
-
 # Welcome message
 
 # Pick a random word from the dictionary between 5 and 12 characters long
-# 
+#
 # Start the game loop
 #  - Display the current state of the word
 #  - Get a letter guess from the player
@@ -19,16 +17,20 @@ game = nil
 answer = []
 guessed_letters = []
 
-puts "Welcome to Hangman!"
+puts 'Welcome to Hangman!'
 puts '-----------------------------------'
 puts 'At any point during the game, you can type "save" to save your current progress.'
 puts "Type 'new' to start a new game or 'load' to load the saved game:"
 
-def load_game
+def open_save_file
   file = File.open('./lib/saves.json', 'r')
   data = JSON.parse(file.read)
   file.close
-  
+  data
+end
+
+def load_game
+  data = open_save_file
   game = Game.new
   game.word = data['word']
   game.strikes = data['strikes']
@@ -39,7 +41,7 @@ def load_game
   puts "Current word state: #{answer.join(' ')}"
   puts "Guessed letters so far: #{guessed_letters.join(', ')}"
 
-  return game, answer, guessed_letters
+  [game, answer, guessed_letters]
 end
 
 input = gets&.chomp&.downcase
@@ -48,29 +50,29 @@ if input == 'load'
   game, answer, guessed_letters = load_game
 elsif input == 'new'
   # Start a new game
-  puts "Starting a new game..."
+  puts 'Starting a new game...'
   game = Game.new
   answer = Array.new(game.word.length, '_')
   guessed_letters = []
 else
-  puts "Invalid input. Starting a new game by default."
+  puts 'Invalid input. Starting a new game by default.'
 end
 
 def restart_game
   game = Game.new
   answer = Array.new(game.word.length, '_')
-  guessed_letters = []
-  puts "-----------------------------------"
-  puts "New game started!"
+  puts '-----------------------------------'
+  puts 'New game started!'
   puts "The word has #{game.word.length} letters: #{answer.join(' ')}"
-  puts "Start guessing letters!"
-  puts "-----------------------------------"
+  puts 'Start guessing letters!'
+  puts '-----------------------------------'
+  [game, answer]
 end
 
 def show_guessed_letters(guessed_letters)
-  unless guessed_letters.empty?
-    puts "Guessed letters so far: #{guessed_letters.join(', ')}"
-  end
+  return if guessed_letters.empty?
+
+  puts "Guessed letters so far: #{guessed_letters.join(', ')}"
 end
 
 def save_game(game, answer, guessed_letters)
@@ -82,6 +84,45 @@ def save_game(game, answer, guessed_letters)
     strikes: game.strikes
   }.to_json)
   file.close
+
+  puts 'Game saved! You can load it next time you start the game.'
+  puts 'Please enter your next guess:'
+end
+
+def process_correct_guess(game, guess, answer, guessed_letters)
+  puts 'Correct!'
+  game.word.chars.each_with_index { |char, idx| answer[idx] = guess if char == guess }
+  show_guessed_letters(guessed_letters)
+  display_word_state(answer)
+end
+
+def process_incorrect_guess(game, answer, guessed_letters)
+  game.lose_life
+  puts "Incorrect! You have #{game.strikes} strikes left."
+  show_guessed_letters(guessed_letters)
+  display_word_state(answer)
+end
+
+def display_word_state(answer)
+  puts '-----------------------------------'
+  puts "Current word state:\n#{answer.join(' ')}"
+  puts '-----------------------------------'
+end
+
+def play_again?
+  puts 'Want to play again? (y/n)'
+  gets.chomp.downcase
+end
+
+def check_game_end(game, answer)
+  if answer.join == game.word
+    puts "Congratulations! You've guessed the word: #{game.word}"
+    return play_again?
+  elsif game.strikes <= 0
+    puts "Game Over! The word was: #{game.word}"
+    return play_again?
+  end
+  nil
 end
 
 loop do
@@ -92,87 +133,33 @@ loop do
 
   if guess == 'save'
     save_game(game, answer, guessed_letters)
-    puts "Game saved! You can load it next time you start the game."
-    puts "Please enter your next guess:"
     next
   end
 
   if guess == game.word&.chomp&.downcase
-    puts "Congratulations! You've guessed the word: #{game.word}"
-    puts "Want to play again? (y/n)"
-    play_again = gets.chomp.downcase
-    if play_again == 'y'
-      restart_game
-    else
-      break
-    end
-  end
+    answer = game.word.chars
+    result = check_game_end(game, answer)
+    break unless result == 'y'
 
-  unless guess =~ /^[a-z]$/
-    puts "Please enter a valid letter:"
+    game, answer = restart_game
+    guessed_letters.clear
     next
   end
 
-  if guess.nil? || guess.empty?
-    puts "Please enter a valid letter:"
-    next
-  end
-
-  if guessed_letters.include?(guess)
-    puts "You've already guessed the letter '#{guess}'. Try a different letter"
-    show_guessed_letters(guessed_letters)
-    next
-  end
+  next if guess.nil? || guess.empty? || guess !~ /^[a-z]$/ || puts('Please enter a valid letter:')
+  next if guessed_letters.include?(guess) && puts("Already guessed '#{guess}'")
 
   guessed_letters << guess
-
   if game.word.include?(guess)
-    puts "Correct!"
-    # Update the answer array with the correct letter
-    game.word.chars.each_with_index do |char, index|
-      if char == guess
-        answer[index] = guess
-      end
-    end
-
-    show_guessed_letters(guessed_letters)
-    puts '-----------------------------------'
-    puts "Current word state:"
-    puts answer.join(' ')
-    puts "-----------------------------------"
-    puts "Please enter your next guess:"
-
-    if answer.join == game.word
-      puts "Congratulations! You've guessed the word: #{game.word}"
-      puts "Want to play again? (y/n)"
-      play_again = gets.chomp.downcase
-      if play_again == 'y'
-        restart_game
-      else
-        break
-      end
-    end
+    process_correct_guess(game, guess, answer, guessed_letters)
   else
-    game.lose_life
-    puts '-----------------------------------'
-    puts "Incorrect! You have #{game.strikes} strikes left."
-    show_guessed_letters(guessed_letters)
-    puts '-----------------------------------'
-    puts "Current word state:"
-    puts answer.join(' ')
-    puts "-----------------------------------"
-    puts "Please enter your next guess:"
+    process_incorrect_guess(game, answer, guessed_letters)
   end
 
-  if game.strikes <= 0
-    puts '-----------------------------------'
-    puts "Game Over! The word was: #{game.word}"
-    puts "Want to play again? (y/n)"
-    play_again = gets.chomp.downcase
-    if play_again == 'y'
-      restart_game
-    else
-      break
-    end
-  end
+  result = check_game_end(game, answer)
+  next unless result
+  break unless result == 'y'
+
+  game, answer = restart_game
+  guessed_letters.clear
 end
