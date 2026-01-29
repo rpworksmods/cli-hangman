@@ -18,7 +18,7 @@ game = Game.new
 answer = Array.new(game.word.length, '_')
 guessed_letters = []
 
-puts "Welcome to the Word Guessing Game!"
+puts "Welcome to Hangman!"
 puts "You have #{game.strikes} strikes to guess the word."
 puts "The word has #{game.word.length} letters: #{answer.join(' ')}"
 puts "Start guessing letters!"
@@ -36,6 +36,12 @@ def restart_game
   puts "The word has #{game.word.length} letters: #{answer.join(' ')}"
   puts "Start guessing letters!"
   puts "-----------------------------------"
+end
+
+def show_guessed_letters(guessed_letters)
+  unless guessed_letters.empty?
+    puts "Guessed letters so far: #{guessed_letters.join(', ')}"
+  end
 end
 
 loop do
@@ -67,6 +73,7 @@ loop do
 
   if guessed_letters.include?(guess)
     puts "You've already guessed the letter '#{guess}'. Try a different letter"
+    show_guessed_letters(guessed_letters)
     next
   end
 
@@ -81,6 +88,7 @@ loop do
       end
     end
 
+    show_guessed_letters(guessed_letters)
     puts '-----------------------------------'
     puts "Current word state:"
     puts answer.join(' ')
@@ -100,6 +108,7 @@ loop do
     game.lose_life
     puts '-----------------------------------'
     puts "Incorrect! You have #{game.strikes} strikes left."
+    show_guessed_letters(guessed_letters)
     puts '-----------------------------------'
     puts "Current word state:"
     puts answer.join(' ')
