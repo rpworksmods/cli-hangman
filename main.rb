@@ -1,4 +1,5 @@
 require './lib/game'
+require 'json'
 
 Dictionary = []
 
@@ -14,18 +15,46 @@ Dictionary = []
 # End the game loop
 # Display win/loss message
 
-game = Game.new
-answer = Array.new(game.word.length, '_')
+game = nil
+answer = []
 guessed_letters = []
 
 puts "Welcome to Hangman!"
-puts "You have #{game.strikes} strikes to guess the word."
-puts "The word has #{game.word.length} letters: #{answer.join(' ')}"
-puts "Start guessing letters!"
-puts "-----------------------------------"
-puts answer.join(' ')
-puts "-----------------------------------"
-puts "Please enter your guess:"
+puts '-----------------------------------'
+puts 'At any point during the game, you can type "save" to save your current progress.'
+puts "Type 'new' to start a new game or 'load' to load the saved game:"
+
+def load_game
+  file = File.open('./lib/saves.json', 'r')
+  data = JSON.parse(file.read)
+  file.close
+  
+  game = Game.new
+  game.word = data['word']
+  game.strikes = data['strikes']
+  answer = data['answer']
+  guessed_letters = data['guessed_letters']
+
+  puts "Game loaded! You have #{game.strikes} strikes left."
+  puts "Current word state: #{answer.join(' ')}"
+  puts "Guessed letters so far: #{guessed_letters.join(', ')}"
+
+  return game, answer, guessed_letters
+end
+
+input = gets&.chomp&.downcase
+
+if input == 'load'
+  game, answer, guessed_letters = load_game
+elsif input == 'new'
+  # Start a new game
+  puts "Starting a new game..."
+  game = Game.new
+  answer = Array.new(game.word.length, '_')
+  guessed_letters = []
+else
+  puts "Invalid input. Starting a new game by default."
+end
 
 def restart_game
   game = Game.new
@@ -44,11 +73,29 @@ def show_guessed_letters(guessed_letters)
   end
 end
 
+def save_game(game, answer, guessed_letters)
+  file = File.open('./lib/saves.json', 'w')
+  file.write({
+    word: game.word,
+    answer: answer,
+    guessed_letters: guessed_letters,
+    strikes: game.strikes
+  }.to_json)
+  file.close
+end
+
 loop do
   guess = gets&.chomp&.downcase
   puts '-----------------------------------'
   puts 'Processing your guess...'
   sleep(1.5)
+
+  if guess == 'save'
+    save_game(game, answer, guessed_letters)
+    puts "Game saved! You can load it next time you start the game."
+    puts "Please enter your next guess:"
+    next
+  end
 
   if guess == game.word&.chomp&.downcase
     puts "Congratulations! You've guessed the word: #{game.word}"
@@ -93,6 +140,7 @@ loop do
     puts "Current word state:"
     puts answer.join(' ')
     puts "-----------------------------------"
+    puts "Please enter your next guess:"
 
     if answer.join == game.word
       puts "Congratulations! You've guessed the word: #{game.word}"

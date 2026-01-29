@@ -7,6 +7,14 @@ class Game
     read_dictionary
     @word = select_word
     @answer = Array.new(@word.length, '_')
+
+    puts "You have #{@strikes} strikes to guess the word."
+    puts "The word has #{@word.length} letters: #{@answer.join(' ')}"
+    puts "Start guessing letters!"
+    puts "-----------------------------------"
+    puts @answer.join(' ')
+    puts "-----------------------------------"
+    puts "Please enter your guess:"
   end
 
   def read_dictionary
